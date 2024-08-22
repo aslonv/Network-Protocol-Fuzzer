@@ -1,0 +1,5 @@
+syntax = "proto3";
+
+package distributed;
+
+// Define gRPC services and messages here.
