@@ -3,7 +3,9 @@ package engine
 import (
     "crypto/rand"
     "log"
+    "math/rand"
     "network-protocol-fuzzer/pkg/protocol"
+    "time"
 )
 
 type Engine struct {
@@ -24,6 +26,7 @@ func (e *Engine) GeneratePacket() []byte {
         packet = append(packet, generatedData...)
     }
 
+    protocol.RecalculateComputedFields(packet, e.protocol.Fields)
     log.Printf("Generated packet: %v", packet)
     return packet
 }
@@ -41,13 +44,18 @@ func (e *Engine) MutatePacket(packet []byte) []byte {
     mutatedPacket := make([]byte, len(packet))
     copy(mutatedPacket, packet)
 
-    // Example mutation: Flip random bits
+    // Example mutation: Genetic Algorithm-based mutation
     for i := range mutatedPacket {
-        if rand.Intn(2) == 0 { // 50% chance to flip the bit
-            mutatedPacket[i] ^= 1 << uint(rand.Intn(8))
+        if shouldMutate() {
+            mutatedPacket[i] = byte(rand.Intn(256))
         }
     }
 
+    protocol.RecalculateComputedFields(mutatedPacket, e.protocol.Fields)
     log.Printf("Mutated packet: %v", mutatedPacket)
     return mutatedPacket
 }
+
+func shouldMutate() bool {
+    rand.Seed(time.Now().UnixNano())
+    return rand.Float64()

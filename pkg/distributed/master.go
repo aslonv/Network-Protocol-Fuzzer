@@ -1,43 +1,55 @@
 package distributed
 
 import (
+    "context"
     "log"
+    "net"
     "sync"
+
+    "google.golang.org/grpc"
 )
 
 type Master struct {
-    workers []*Worker
     tasks   chan Task
+    results chan FuzzingResult
     wg      sync.WaitGroup
+    UnimplementedFuzzingServiceServer
 }
 
-func NewMaster(workerCount int) *Master {
-    m := &Master{
-        workers: make([]*Worker, workerCount),
-        tasks:   make(chan Task, workerCount),
+func NewMaster() *Master {
+    return &Master{
+        tasks:   make(chan Task, 100),
+        results: make(chan FuzzingResult, 100),
     }
-
-    for i := 0; i < workerCount; i++ {
-        m.workers[i] = NewWorker(i, m.tasks, &m.wg)
-    }
-
-    return m
 }
 
-func (m *Master) Start() {
-    log.Println("Starting master node...")
-
-    for _, worker := range m.workers {
-        m.wg.Add(1)
-        go worker.Start()
+func (m *Master) StartServer(port string) error {
+    listener, err := net.Listen("tcp", port)
+    if err != nil {
+        return err
     }
 
-    // Example task generation
+    grpcServer := grpc.NewServer()
+    RegisterFuzzingServiceServer(grpcServer, m)
+
+    log.Printf("Master node listening on %s", port)
+    return grpcServer.Serve(listener)
+}
+
+func (m *Master) GetTask(ctx context.Context, req *WorkerRequest) (*Task, error) {
+    task := <-m.tasks
+    return &task, nil
+}
+
+func (m *Master) ReportResult(ctx context.Context, result *FuzzingResult) (*ResultAck, error) {
+    m.results <- *result
+    return &ResultAck{Message: "Result received"}, nil
+}
+
+func (m *Master) DistributeTasks() {
     for i := 0; i < 1000; i++ {
-        m.tasks <- Task{ID: i, Data: []byte{byte(i)}}
+        m.tasks <- Task{TaskId: int32(i), Data: []byte{byte(i)}}
     }
-
-    close(m.tasks) // Close the channel when tasks are done
-    m.wg.Wait()    // Wait for all workers to finish
-    log.Println("All tasks completed.")
+    close(m.tasks)
+    m.wg.Wait()
 }

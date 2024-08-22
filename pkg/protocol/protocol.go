@@ -1,6 +1,8 @@
 package protocol
 
 import (
+    "crypto/sha256"
+    "encoding/binary"
     "encoding/json"
     "errors"
     "fmt"
@@ -54,6 +56,23 @@ func validateProtocol(p *Protocol) error {
         if field.Length <= 0 {
             return errors.New("field length must be greater than zero")
         }
+        if field.Type == "computed" && field.Mutation != "recalculate" {
+            return errors.New("computed fields must use 'recalculate' as mutation strategy")
+        }
     }
     return nil
+}
+
+func CalculateChecksum(data []byte) []byte {
+    hash := sha256.Sum256(data)
+    return hash[:2] // Example: use the first 2 bytes as a checksum
+}
+
+func RecalculateComputedFields(packet []byte, fields []Field) {
+    for _, field := range fields {
+        if field.Type == "computed" {
+            checksum := CalculateChecksum(packet)
+            copy(packet[len(packet)-len(checksum):], checksum)
+        }
+    }
 }

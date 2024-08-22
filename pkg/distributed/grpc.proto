@@ -2,4 +2,25 @@ syntax = "proto3";
 
 package distributed;
 
-// Define gRPC services and messages here.
+service FuzzingService {
+  rpc GetTask (WorkerRequest) returns (Task);
+  rpc ReportResult (FuzzingResult) returns (ResultAck);
+}
+
+message WorkerRequest {
+  int32 worker_id = 1;
+}
+
+message Task {
+  int32 task_id = 1;
+  bytes data = 2;
+}
+
+message FuzzingResult {
+  int32 task_id = 1;
+  bool success = 2;
+}
+
+message ResultAck {
+  string message = 1;
+}
