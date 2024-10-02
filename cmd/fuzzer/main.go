@@ -1,28 +1,41 @@
+// Entry point for the network protocol fuzzer.
 package main
 
 import (
-    "flag"
-    "log"
+	"flag"
+	"fmt"
+	"os"
 
-    "network-protocol-fuzzer/pkg/fuzzer"
-    "network-protocol-fuzzer/internal/logger"
+	"network-protocol-fuzzer/internal/logger"
+	"network-protocol-fuzzer/pkg/fuzzer"
 )
 
 func main() {
-    protocolFile := flag.String("protocol", "protocol.json", "Path to the protocol definition file")
-    logFile := flag.String("log", "fuzzer.log", "Path to the log file")
-    verbose := flag.Bool("v", false, "Enable verbose logging")
+	if err := run(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+}
 
-    flag.Parse()
+// Executes the main application logic and handles errors.
+func run() error {
+	protocolFile := flag.String("protocol", "protocol.json", "protocol definition file path")
+	logFile := flag.String("log", "fuzzer.log", "log file path")
+	verbose := flag.Bool("v", false, "enable verbose logging")
+	flag.Parse()
 
-    logger.Initialize(*logFile, *verbose)
+	if err := logger.Initialize(*logFile, *verbose); err != nil {
+		return fmt.Errorf("logger initialization: %w", err)
+	}
 
-    fuzzerInstance, err := fuzzer.NewFuzzer(*protocolFile)
-    if err != nil {
-        log.Fatalf("Error initializing fuzzer: %v", err)
-    }
+	fuzzerInstance, err := fuzzer.NewFuzzer(*protocolFile)
+	if err != nil {
+		return fmt.Errorf("fuzzer initialization: %w", err)
+	}
 
-    if err := fuzzerInstance.Run(); err != nil {
-        log.Fatalf("Fuzzer encountered an error: %v", err)
-    }
+	if err := fuzzerInstance.Run(); err != nil {
+		return fmt.Errorf("fuzzer execution: %w", err)
+	}
+
+	return nil
 }
